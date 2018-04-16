@@ -1,4 +1,5 @@
 /**
+*   2018.04.16 Set humidity swing report interval to 3% (mostly to see if this thing works!)
 *   2018.02.25 Initial import from https://community.smartthings.com/t/zipato-ph-pat02-3-in-1-z-wave-multi-sensor-device-handler-help-or-request-dth-in-post-10/78488/10
 *   Copyright 2016 SmartThings
 *   Copyright 2015 AstraLink
@@ -14,6 +15,7 @@
 *
 *   Zipato PH-PAT02 3-in-1 Z-Wave Multi-Sensor
 *   Based on Z-Wave Plus Motion Sensor with Temperature Measurement, ZP3102*-5
+*   To change parameters, see `configure()` function.
 */
 
 metadata {
@@ -88,8 +90,7 @@ def configure() {
         zwave.batteryV1.batteryGet(),
         zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType:1, scale:1),
         
-        // Sensor-specific settings
-        // NOTE: Sensor uses intervals of 30 minutes per tick
+        // Sensor-specific settings. Sensor uses default tick interval of 30 minutes
         // See: https://www.zipato.com/wp-content/uploads/2015/10/ph-pat02-Zipato-Flood-Multisensor-3-in-1-User-Manual-v1.0.pdf
                 
         // Set humidity diff report to 3 pct
