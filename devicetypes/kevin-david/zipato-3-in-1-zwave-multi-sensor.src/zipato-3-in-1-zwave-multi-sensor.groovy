@@ -86,7 +86,15 @@ def configure() {
     cmds += secureSequence([
         zwave.manufacturerSpecificV2.manufacturerSpecificGet(),
         zwave.batteryV1.batteryGet(),
-        zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType:1, scale:1)
+        zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType:1, scale:1),
+        
+        // Sensor-specific settings
+        // NOTE: Sensor uses intervals of 30 minutes per tick
+        // See: https://www.zipato.com/wp-content/uploads/2015/10/ph-pat02-Zipato-Flood-Multisensor-3-in-1-User-Manual-v1.0.pdf
+                
+        // Set humidity diff report to 3 pct
+        zwave.configurationV1.configurationSet(parameterNumber: 22, size: 1, scaledConfigurationValue: 3)
+        
     ], 500)
 
     cmds << "delay 8000"
@@ -190,8 +198,6 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
         } else if (cmd.event == 0x03) {
             result << createEvent(descriptionText: "$device.displayName covering was removed", isStateChange: true)
             result << response(secure(zwave.manufacturerSpecificV2.manufacturerSpecificGet()))
-        } else if (cmd.event == 0x05 || cmd.event == 0x06) {
-            result << createEvent(descriptionText: "$device.displayName detected glass breakage", isStateChange: true)
         } else if (cmd.event == 0x07) {
             result << sensorValueEvent(1)
         } else if (cmd.event == 0x08) {
@@ -269,20 +275,10 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
             map.value = convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision)
             map.unit = getTemperatureScale()
             break;
-        case 3:
-            map.name = "illuminance"
-            map.value = cmd.scaledSensorValue.toInteger().toString()
-            map.unit = "lux"
-            break;
         case 5:
             map.name = "humidity"
             map.value = cmd.scaledSensorValue.toInteger().toString()
             map.unit = cmd.scale == 0 ? "%" : ""
-            break;
-        case 0x1E:
-            map.name = "loudness"
-            map.unit = cmd.scale == 1 ? "dBA" : "dB"
-            map.value = cmd.scaledSensorValue.toString()
             break;
         default:
             map.descriptionText = cmd.toString()
