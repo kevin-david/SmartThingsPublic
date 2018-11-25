@@ -81,7 +81,7 @@ def handleTemperatureEvent(evt) {
 }
  
 def handleWaterEvent(evt) {
-        sendValue(evt) { it == "wet" ? "true" : "false" }
+        sendValue(evt) { it == "wet" ? 1 : 0 }
 }
  
 def handleHumidityEvent(evt) {
@@ -89,23 +89,23 @@ def handleHumidityEvent(evt) {
 }
  
 def handleContactEvent(evt) {
-        sendValue(evt) { it == "open" ? "true" : "false" }
+        sendValue(evt) { it == "open" ? 1 : 0 }
 }
  
 def handleAccelerationEvent(evt) {
-        sendValue(evt) { it == "active" ? "true" : "false" }
+        sendValue(evt) { it == "active" ? 1 : 0 }
 }
  
 def handleMotionEvent(evt) {
-        sendValue(evt) { it == "active" ? "true" : "false" }
+        sendValue(evt) { it == "active" ? 1 : 0 }
 }
  
 def handlePresenceEvent(evt) {
-        sendValue(evt) { it == "present" ? "true" : "false" }
+        sendValue(evt) { it == "present" ? 1 : 0 }
 }
  
 def handleSwitchEvent(evt) {
-        sendValue(evt) { it == "on" ? "true" : "false" }
+        sendValue(evt) { it == "on" ? 1 : 0 }
 }
  
 def handleBatteryEvent(evt) {
@@ -122,7 +122,6 @@ def handleEnergyEvent(evt) {
  
 private sendValue(evt, Closure convert) {     
     def url = "https://dc.services.visualstudio.com/v2/track"
-    def header = ["Content-Type": "application/x-json-stream"]
     UUID iKey = UUID.fromString(instrumentationKey)
 
     def metricValue = convert(evt.value)
@@ -135,8 +134,7 @@ private sendValue(evt, Closure convert) {
 
     log.debug "Logging to AppInsights ${sensorName}, ${metricName} = ${metricValue}"
 
-    TimeZone.setDefault(TimeZone.getTimeZone('UTC')) 
-    def now = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+    def now = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone('UTC'))
 
     // This is ugly. Ideally we'd use jsonBuilder here but the syntax isn't exactly obvious...
     def body = """
@@ -152,18 +150,27 @@ private sendValue(evt, Closure convert) {
           	"baseData": {
           		"ver": 2,
           		"metrics": [
-            		{ "name": "${metricName}", "kind": "Aggregation", "value": ${myMetricValue}, "count": 1 }
+            		{ "name": "${metricName}", "kind": "Aggregation", "value": ${metricValue}, "count": 1 }
           		]
         	}
       	}
     }
     """
+	
+    // log.debug "Body: ${body}"
 
-    def params = [uri: url, header: header, body: body]
+    def params = [uri: url, contentType: "application/x-json-stream", body: body]
 
-    httpPost(params) { response ->
-        if (response.status != 200) {
-            log.debug "AI logging failed, status = ${response.status}"
+	try 
+    {
+        httpPost(params) { response ->
+            log.debug "AI logging response status: ${response.status}"
+
+            if (response.status != 200) {
+                log.error "AI logging failed, status = ${response.status}, body = ${response.data}"
+            }
         }
+    } catch (e) {
+        log.error "Failed making request to AI: $e"
     }
 }
