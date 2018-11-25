@@ -121,50 +121,49 @@ def handleEnergyEvent(evt) {
 }
  
 private sendValue(evt, Closure convert) {     
- 
-        def url = "https://dc.services.visualstudio.com/v2/track"
-        def header = ["Content-Type": "application/x-json-stream"]
-        def instrumentationKey = "09ac2fbd-65ec-41bd-a32b-a97385571680"
-        UUID iKey = UUID.fromString(instrumentationKey)
-        
-        def metricValue = convert(evt.value)
-        // Name of the device
-        def sensorName = evt.displayName.trim()
-        // Device's attribute name
-        def metricName = evt.name
-        
-        log.debug "Logging to AppInsights ${sensorName}, ${metricName} = ${metricValue}"
+    def url = "https://dc.services.visualstudio.com/v2/track"
+    def header = ["Content-Type": "application/x-json-stream"]
+    UUID iKey = UUID.fromString(instrumentationKey)
 
-        TimeZone.setDefault(TimeZone.getTimeZone('UTC')) 
-        def now = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-             
-        def body = """
-        {
-          "name": "Microsoft.ApplicationInsights.${iKey.toString().replace("-", "")}.Metric",
-          "time": "${now}",
-          "iKey": "${iKey.toString()}",
-          "tags": {
-            "ai.cloud.roleInstance": "${sensorName}"
-          },
-          "data": {
-            "baseType": "MetricData",
-            "baseData": {
-              "ver": 2,
-              "metrics": [
-                { "name": "${metricName}", "kind": "Aggregation", "value": ${myMetricValue}, "count": 1 }
-              ]
-            }
-          }
+    def metricValue = convert(evt.value)
+    
+    // Name of the device
+    def sensorName = evt.displayName.trim()
+    
+    // Device's attribute name
+    def metricName = evt.name
+
+    log.debug "Logging to AppInsights ${sensorName}, ${metricName} = ${metricValue}"
+
+    TimeZone.setDefault(TimeZone.getTimeZone('UTC')) 
+    def now = new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+
+    // This is ugly. Ideally we'd use jsonBuilder here but the syntax isn't exactly obvious...
+    def body = """
+    {
+    	"name": "Microsoft.ApplicationInsights.${iKey.toString().replace("-", "")}.Metric",
+        "time": "${now}",
+        "iKey": "${iKey.toString()}",
+        "tags": {
+        	"ai.cloud.roleInstance": "${sensorName}"
+        },
+        "data": {
+			"baseType": "MetricData",
+          	"baseData": {
+          		"ver": 2,
+          		"metrics": [
+            		{ "name": "${metricName}", "kind": "Aggregation", "value": ${myMetricValue}, "count": 1 }
+          		]
+        	}
+      	}
+    }
+    """
+
+    def params = [uri: url, header: header, body: body]
+
+    httpPost(params) { response ->
+        if (response.status != 200) {
+            log.debug "AI logging failed, status = ${response.status}"
         }
-        """
- 
-        def params = [uri: url, header: header, body: body]
- 
-        httpPost(params) { response ->
-                if (response.status != 200 ) {
-                        log.debug "AI logging failed, status = ${response.status}"
-                }
- 
-        }
- 
+    }
 }
